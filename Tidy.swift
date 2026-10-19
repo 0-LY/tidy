@@ -289,7 +289,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
                 host.sizingOptions = [.preferredContentSize]
                 let item = NSTabViewItem(viewController: host)
                 item.label = title
-                host.title = title
+                host.title = "\(Identity.appName) — \(title)"
                 item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
                 item.identifier = id
                 tabs.addTabViewItem(item)
@@ -512,7 +512,7 @@ struct SettingsView: View {
                 .padding(.bottom, 12)
         }
         .controlSize(.small)
-        .frame(width: 480, height: 520)
+        .frame(width: 480, height: 580)
     }
 
     private var writingTab: some View {

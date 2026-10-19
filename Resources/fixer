@@ -5,7 +5,7 @@ export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin:$HOM
 HERE="${0:A:h}"
 helper() {
   local c
-  for c in "$HERE/$1" "${HERE:h}/MacOS/$1" "$HERE/build/$1"; do [[ -x "$c" ]] && { print -r -- "$c"; return; }; done
+  for c in "$HERE/$1" "${HERE:h}/MacOS/$1" "${HERE:h}/build/$1"; do [[ -x "$c" ]] && { print -r -- "$c"; return; }; done
   print -r -- "$HERE/$1"
 }
 LOCAL_BIN="$(helper fixer-local)"
@@ -15,7 +15,7 @@ if [[ -f "$APP_PLIST" ]]; then
   APP_NAME="$(plutil -extract CFBundleDisplayName raw -o - "$APP_PLIST" 2>/dev/null)"
   CONFIG_DIR_NAME="$(plutil -extract AppConfigDirName raw -o - "$APP_PLIST" 2>/dev/null)"
 else
-  for f in "$HERE/identity.env" "$HERE/identity.local.env"; do [[ -f "$f" ]] && source "$f"; done
+  for f in "${HERE:h}/app.env" "${HERE:h}/app.local.env"; do [[ -f "$f" ]] && source "$f"; done
 fi
 CLAUDE_BIN=""
 for c in /opt/homebrew/bin/claude /usr/local/bin/claude "$HOME/.local/bin/claude"; do

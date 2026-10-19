@@ -94,25 +94,26 @@ You need the Xcode Command Line Tools (`xcode-select --install`). The first buil
 Run a fix from the command line:
 
 ```sh
-echo "helo wrld" | ./fixer --style minimal --model local
+echo "helo wrld" | ./Resources/fixer --style minimal --model local
 ```
 
 | File | Purpose |
 |---|---|
-| `Tidy.swift` | App, menu bar, settings window |
-| `Hotkey.swift` | Global hotkey, copy → fix → paste |
-| `HUD.swift` | Glass bubble and its placement |
-| `Updates.swift` | Automatic updates (Sparkle) |
-| `LocalFix.swift` | Apple on-device model and shared clean-up |
-| `Signal.swift` | Clipboard and bubble helper for the Services action |
-| `fixer` | Prompt rules, model calls, fallback |
-| `Identity.swift` | Name, bundle ID and settings folder, read from the built app |
-| `identity.env` | Public identity: name, publisher, GitHub owner and repo |
-| `scripts/` | Build, release and Sparkle download scripts |
+| `Sources/Tidy.swift` | App, menu bar, settings window |
+| `Sources/Hotkey.swift` | Global hotkey, copy → fix → paste |
+| `Sources/HUD.swift` | Glass bubble and its placement |
+| `Sources/Updates.swift` | Automatic updates (Sparkle) |
+| `Sources/LocalFix.swift` | Apple on-device model and shared clean-up |
+| `Sources/Signal.swift` | Clipboard and bubble helper for the Services action |
+| `Resources/fixer` | Prompt rules, model calls, fallback |
+| `Sources/Identity.swift` | Name, bundle ID and settings folder, read from the built app |
+| `app.env` | Name, publisher, GitHub owner and repo, version |
+| `Resources/` | Entitlements, the `fixer` script and the Fix text service |
+| `scripts/` | Build and Sparkle download scripts; `scripts/icon/` makes the app icon |
 
 ## Credits
 
-Orb animation: [Thinking orbs](https://libraries.dev/orbs) by Jakub Antalik (MIT, see `vendor/ThinkingOrbsKit/LICENSE`).
+Orb animation: [Thinking orbs](https://libraries.dev/orbs) by Jakub Antalik (MIT, see `Sources/ThinkingOrbsKit/LICENSE`).
 Updates: [Sparkle](https://sparkle-project.org) (MIT).
 
 ## License

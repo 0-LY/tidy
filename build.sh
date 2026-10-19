@@ -42,7 +42,7 @@ ditto "$here/build/$APP_NAME.app" "$app"
 defaults write pbs NSServicesStatus -dict-add '"(null) - Fix text - runWorkflowAsService"' \
   '{enabled_context_menu = 1; enabled_services_menu = 1; presentation_modes = {ContextMenu = 1; ServicesMenu = 1;};}'
 mkdir -p "$HOME/Library/Services"
-[[ -d "$HOME/Library/Services/Fix text.workflow" ]] || cp -R "$here/services/Fix text.workflow" "$HOME/Library/Services/"
+[[ -d "$HOME/Library/Services/Fix text.workflow" ]] || cp -R "$here/Resources/Fix text.workflow" "$HOME/Library/Services/"
 wf="$HOME/Library/Services/Fix text.workflow/Contents/document.wflow"
 if [[ -f "$wf" ]]; then
   plutil -replace actions.0.action.ActionParameters.COMMAND_STRING -string "$app/Contents/Resources/fixer" "$wf"

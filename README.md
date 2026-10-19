@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/0-LY/tidy/releases/latest/download/Tidy.zip"><b>Download Tidy for macOS</b></a>
+  <a href="https://github.com/0-LY/tidy/releases/latest/download/Tidy.dmg"><b>Download Tidy for macOS</b></a>
   ·
   <a href="https://github.com/0-LY/tidy/releases">All releases</a>
 </p>
@@ -49,8 +49,8 @@ If Claude is unavailable, Tidy can fall back to the local model.
 
 ## Install
 
-1. [Download Tidy.zip](https://github.com/0-LY/tidy/releases/latest/download/Tidy.zip) and unzip it.
-2. Move **Tidy.app** to your **Applications** folder.
+1. [Download Tidy.dmg](https://github.com/0-LY/tidy/releases/latest/download/Tidy.dmg) and open it.
+2. Drag **Tidy** onto the **Applications** folder in the window that opens.
 3. Open it. Tidy isn't notarized by Apple, so the first time macOS says it can't check it:
    click **Done**, open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
    You only do this once — updates open normally.

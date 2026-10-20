@@ -50,11 +50,15 @@ If Claude is unavailable, Tidy can fall back to the local model.
 
 ## Install
 
-1. [Download Tidy.dmg](https://github.com/0-LY/tidy/releases/latest/download/Tidy.dmg) and open it.
+> [!IMPORTANT]
+> **First install only.** Tidy isn't notarized by Apple, so macOS blocks it the first time.
+> You may see this twice — once for the `.dmg`, once for the app. Each time: click **Done**, open
+> **System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to "Tidy",
+> then open it again. You do this once per app; updates install and open normally.
+
+1. [Download Tidy.dmg](https://github.com/0-LY/tidy/releases/latest/download/Tidy.dmg) and open it. If macOS blocks it, use **Open Anyway** as above.
 2. Drag **Tidy** onto the **Applications** folder in the window that opens.
-3. Open it. Tidy isn't notarized by Apple, so the first time macOS says it can't check it:
-   click **Done**, open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
-   You only do this once — updates open normally.
+3. Open Tidy from Applications. If macOS blocks it, use **Open Anyway** again.
 4. Allow **Accessibility** when asked (System Settings → Privacy & Security → Accessibility).
    Tidy needs it to copy your selection and paste the fixed text.
 

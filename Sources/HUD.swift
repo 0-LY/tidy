@@ -53,7 +53,7 @@ final class HUDController {
     }
 
     func show(label: String, anchor: CGRect?) {
-        let config = Config.load()
+        let config = Store.shared.config
         guard let scale = Self.scale(for: config.hudSize) else { return }
         pending?.cancel()
         model.scale = scale

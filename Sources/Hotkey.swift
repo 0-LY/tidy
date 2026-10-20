@@ -190,7 +190,7 @@ final class Fixer {
         let front = NSWorkspace.shared.frontmostApplication?.processIdentifier
         let focus = TextLocator.focusedElement()
         let anchor = TextLocator.selectionRect()
-        let config = Config.load()
+        let config = Store.shared.config
 
         Keys.waitForModifiersUp {
             let pb = NSPasteboard.general

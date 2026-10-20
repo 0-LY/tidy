@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/try-it.png" width="420" alt="Tidy fixing a sentence">
+  <img src="docs/screenshots/in-use.png" width="560" alt="The Tidy bubble while it fixes your text">
 </p>
 
 ## What it does
@@ -42,9 +42,10 @@ If Claude is unavailable, Tidy can fall back to the local model.
 - **Services menu** — right-click selected text → Services → **Fix text**.
 
 <p align="center">
-  <img src="docs/screenshots/writing.png" width="300" alt="Writing settings">
-  <img src="docs/screenshots/animation.png" width="300" alt="Animation settings">
-  <img src="docs/screenshots/general.png" width="300" alt="General settings">
+  <img src="docs/screenshots/settings-general.png" width="360" alt="General settings">
+  <img src="docs/screenshots/settings-writing.png" width="360" alt="Writing settings">
+  <img src="docs/screenshots/settings-animation.png" width="360" alt="Animation settings">
+  <img src="docs/screenshots/settings-try-it.png" width="360" alt="Try It">
 </p>
 
 ## Install

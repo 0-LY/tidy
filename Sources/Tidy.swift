@@ -267,6 +267,12 @@ final class SettingsTabs: NSTabViewController {
     }
 }
 
+final class QuietWindow: NSWindow {
+    override func noResponder(for eventSelector: Selector) {}
+
+    override func cancelOperation(_ sender: Any?) { performClose(sender) }
+}
+
 final class SettingsWindow: NSObject, NSWindowDelegate {
     static let shared = SettingsWindow()
     private var window: NSWindow?
@@ -296,7 +302,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
             }
             let start = CommandLine.arguments.first { $0.hasPrefix("--tab=") }.map { String($0.dropFirst(6)) }
                 ?? UserDefaults.standard.string(forKey: SettingsTabs.lastKey) ?? "general"
-            let w = NSWindow(contentViewController: tabs)
+            let w = QuietWindow(contentViewController: tabs)
             tabs.selectedTabViewItemIndex = panes.firstIndex { $0.0 == start } ?? 0
             w.styleMask = [.titled, .closable]
             w.toolbarStyle = .preference
@@ -430,9 +436,15 @@ struct TidyApp: App {
     init() {
         let args = CommandLine.arguments
         guard let flag = args.dropFirst().first(where: { $0.hasPrefix("--login") }) else {
+            let me = ProcessInfo.processInfo.processIdentifier
+            if let other = NSRunningApplication.runningApplications(withBundleIdentifier: Identity.bundleId)
+                .first(where: { $0.processIdentifier != me && !$0.isTerminated }) {
+                other.activate()
+                exit(0)
+            }
             HUDController.shared.listen()
             HotKey.shared.onPress = { Fixer.shared.trigger() }
-            HotKey.shared.register(Config.load().hotkey)
+            HotKey.shared.register(Store.shared.config.hotkey)
             if !Access.trusted { Access.request() }
             return
         }
@@ -453,6 +465,21 @@ struct TidyApp: App {
 
     var body: some Scene {
         Settings { EmptyView() }
+            .commands {
+                CommandGroup(replacing: .appSettings) {
+                    Button("Settings…") { SettingsWindow.shared.show() }
+                        .keyboardShortcut(",", modifiers: .command)
+                    Button("Check for Updates…") { Updates.shared.checkNow() }
+                }
+                CommandGroup(before: .windowSize) {
+                    Button("Close") { NSApp.keyWindow?.performClose(nil) }
+                        .keyboardShortcut("w", modifiers: .command)
+                    Divider()
+                }
+                CommandGroup(replacing: .sidebar) {}
+                CommandGroup(replacing: .toolbar) {}
+                CommandGroup(replacing: .help) {}
+            }
     }
 }
 

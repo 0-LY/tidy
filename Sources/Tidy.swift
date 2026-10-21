@@ -495,6 +495,9 @@ struct TidyApp: App {
 }
 
 final class SettingsUI: ObservableObject {
+    nonisolated(unsafe) static var runSetup: () -> Void = {
+        MainActor.assumeIsolated { SetupWindow.shared.show() }
+    }
     static let shared = SettingsUI()
     @Published var tab = CommandLine.arguments.first { $0.hasPrefix("--tab=") }.map { String($0.dropFirst(6)) } ?? "settings"
     @Published var input = "hey how are u going, did u saw my mesage? i think its broke the export again"
@@ -603,6 +606,10 @@ struct SettingsView: View {
                     .onChange(of: ui.openAtLogin) { _, on in ui.setLogin(on) }
                 if !ui.loginError.isEmpty {
                     Text(ui.loginError).font(.caption).foregroundStyle(.red)
+                }
+                LabeledContent("First-launch setup") {
+                    Button("Run Setup Again") { SettingsUI.runSetup() }
+                        .help("Open first-launch setup. Your current settings are kept.")
                 }
             }
             UpdatesSection()

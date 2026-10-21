@@ -61,7 +61,9 @@ If Claude is unavailable, Tidy can fall back to the local model.
 4. **First launch:** a short setup walks you through allowing **Accessibility** (the button opens that page in
    System Settings; Tidy needs it to copy your selection and paste the fixed text), choosing Local or Haiku,
    your style and hotkey, and a quick try — with a little confetti at the end.
-   Run it again any time from the menu: **Set Up Tidy…**
+   Skipped it? Everything from setup is also in Settings: Accessibility and the hotkey in General,
+   model and style in Writing, and the Try It pane. Run it again with **Run Setup Again** in
+   Settings → General or **Set Up Tidy…** in the menu — your current settings are kept.
 
 <p align="center">
   <img src="docs/screenshots/setup-welcome.png" width="200" alt="Setup: welcome">

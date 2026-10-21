@@ -20,7 +20,7 @@
 
 ## What it does
 
-Select text in any app — mail, chat, notes, a browser, a terminal — and press **⌃⌥F** (you can change it).
+Select text in any app — mail, chat, notes, a browser, a terminal — and press **⌃⌥F**. To pick your own keys, click the Hotkey field in Settings → General and press them; macOS shortcuts and keys already used by Stash, Murmur or Linkway are flagged.
 Tidy fixes the spelling, grammar and punctuation and puts the result back in place of your selection.
 A small glass bubble with an animated orb shows above the text while it works.
 
@@ -116,6 +116,7 @@ echo "helo wrld" | ./Resources/fixer --style minimal --model local
 |---|---|
 | `Sources/Tidy.swift` | App, menu bar, settings window |
 | `Sources/Hotkey.swift` | Global hotkey, copy → fix → paste |
+| `Sources/ShortcutRecorder.swift` | Record-your-own hotkey field |
 | `Sources/HUD.swift` | Glass bubble and its placement |
 | `Sources/Updates.swift` | Automatic updates (Sparkle) |
 | `Sources/LocalFix.swift` | Apple on-device model and shared clean-up |

@@ -253,12 +253,10 @@ struct SetupView: View {
             }
             VStack(alignment: .leading, spacing: 8) {
                 Text("Hotkey").font(.headline)
-                Picker("", selection: $store.config.hotkey) {
-                    ForEach(hotkeys) { Text($0.name).tag($0.id) }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .controlSize(.large)
+                ShortcutRecorder(shortcut: store.hotkeyBinding, defaultShortcut: hotkeyShortcut(defaultHotkey),
+                                 conflicts: SiblingShortcuts.read(excluding: Identity.configDirName))
+                    .controlSize(.large)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 Text("Select text anywhere, then press it.")
                     .font(.caption).foregroundStyle(.secondary)
             }

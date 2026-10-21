@@ -16,6 +16,7 @@ swiftc -O -parse-as-library -target "$target" -F "$sparkle" -framework Sparkle \
   -Xlinker -rpath -Xlinker @executable_path/../Frameworks \
   "$root/Sources/Tidy.swift" "$root/Sources/Identity.swift" "$root/Sources/HUD.swift" "$root/Sources/Hotkey.swift" \
   "$root/Sources/Updates.swift" "$root/Sources/Setup.swift" "$root/Sources/SetupKit.swift" \
+  "$root/Sources/ShortcutRecorder.swift" "$root/Sources/LayoutProbe.swift" "$root/Sources/Siblings.swift" \
   "$root"/Sources/ThinkingOrbsKit/*.swift -o "$out/app-binary"
 swiftc -O -parse-as-library -target "$target" "$root/Sources/Signal.swift" -o "$out/fixer-signal" 2>/dev/null \
   || swiftc -O -target "$target" "$root/Sources/Signal.swift" -o "$out/fixer-signal"

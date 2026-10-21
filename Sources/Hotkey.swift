@@ -2,15 +2,17 @@ import AppKit
 import ApplicationServices
 import Carbon.HIToolbox
 
-let hotkeys = [
-    Option(id: "ctrl-opt-f", name: "⌃⌥F", blurb: ""),
-    Option(id: "ctrl-opt-r", name: "⌃⌥R", blurb: ""),
-    Option(id: "ctrl-opt-space", name: "⌃⌥Space", blurb: ""),
-    Option(id: "ctrl-shift-f", name: "⌃⇧F", blurb: ""),
-]
+let defaultHotkey = "ctrl-opt-f"
+
+func hotkeyShortcut(_ id: String) -> RecordedShortcut? { ShortcutRules.parse(id) }
 
 func hotkeyName(_ id: String) -> String {
-    hotkeys.first { $0.id == id }?.name ?? "⌃⌥F"
+    hotkeyShortcut(id)?.display ?? "Off"
+}
+
+func normalizedHotkey(_ id: String) -> String {
+    if id == "off" { return id }
+    return hotkeyShortcut(id)?.storageID ?? id
 }
 
 final class HotKey {
@@ -23,6 +25,7 @@ final class HotKey {
     func register(_ id: String) {
         if let ref { UnregisterEventHotKey(ref) }
         ref = nil
+        guard let shortcut = hotkeyShortcut(id) else { return }
         if !handlerInstalled {
             var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
             InstallEventHandler(GetApplicationEventTarget(), { _, _, _ in
@@ -31,14 +34,8 @@ final class HotKey {
             }, 1, &spec, nil, nil)
             handlerInstalled = true
         }
-        let (code, mods): (Int, Int) = switch id {
-        case "ctrl-opt-r": (kVK_ANSI_R, controlKey | optionKey)
-        case "ctrl-opt-space": (kVK_Space, controlKey | optionKey)
-        case "ctrl-shift-f": (kVK_ANSI_F, controlKey | shiftKey)
-        default: (kVK_ANSI_F, controlKey | optionKey)
-        }
         let hotID = EventHotKeyID(signature: OSType(0x4658_5458), id: 1)
-        RegisterEventHotKey(UInt32(code), UInt32(mods), hotID, GetApplicationEventTarget(), 0, &ref)
+        RegisterEventHotKey(UInt32(shortcut.keyCode), UInt32(shortcut.carbonModifiers), hotID, GetApplicationEventTarget(), 0, &ref)
     }
 }
 

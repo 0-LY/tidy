@@ -10,7 +10,7 @@ struct Config: Codable, Equatable {
     var copyToClipboard = true
     var fallbackLocal = true
     var hudSize = "medium"
-    var hotkey = "ctrl-opt-f"
+    var hotkey = defaultHotkey
     var showInMenuBar = true
     var vocabulary = ""
     var orbState = "composing"
@@ -29,7 +29,7 @@ struct Config: Codable, Equatable {
         copyToClipboard = value(.copyToClipboard, copyToClipboard)
         fallbackLocal = value(.fallbackLocal, fallbackLocal)
         hudSize = value(.hudSize, hudSize)
-        hotkey = value(.hotkey, hotkey)
+        hotkey = normalizedHotkey(value(.hotkey, hotkey))
         showInMenuBar = value(.showInMenuBar, showInMenuBar)
         vocabulary = value(.vocabulary, vocabulary)
         if vocabulary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { vocabulary = "" }
@@ -118,6 +118,11 @@ final class Store: ObservableObject {
     }
 
     private var unreadable = false
+
+    var hotkeyBinding: Binding<RecordedShortcut?> {
+        Binding(get: { hotkeyShortcut(self.config.hotkey) },
+                set: { self.config.hotkey = $0?.storageID ?? "off" })
+    }
 
     init() {
         Paths.securePermissions()
@@ -568,8 +573,11 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.segmented)
                 ModelDetailsRow(model: store.config.model)
+                    .probe("writing.details")
                 if store.config.model != "local" {
-                    FallbackRow(on: $store.config.fallbackLocal)
+                    FallbackRow(on: Binding(
+                        get: { store.config.fallbackLocal },
+                        set: { v in withAnimation(.easeInOut(duration: 0.25)) { store.config.fallbackLocal = v } }))
                 }
             } footer: {
                 Text(blurb(styles, store.config.style))
@@ -589,12 +597,14 @@ struct SettingsView: View {
         Form {
             Section {
                 LabeledContent("Accessibility") { AccessBadge() }
-                Picker(selection: $store.config.hotkey) {
-                    ForEach(hotkeys) { Text($0.name).tag($0.id) }
+                LabeledContent {
+                    ShortcutRecorder(shortcut: store.hotkeyBinding, defaultShortcut: hotkeyShortcut(defaultHotkey),
+                                     conflicts: SiblingShortcuts.read(excluding: Identity.configDirName))
                 } label: {
                     Text("Hotkey")
                     Text("Select text anywhere, then press it.")
                 }
+                .probe("general.hotkey")
                 Toggle("Keep result in clipboard", isOn: $store.config.copyToClipboard)
             }
             Section {
@@ -620,40 +630,46 @@ struct SettingsView: View {
     private var animationTab: some View {
         Form {
             Section {
-                ZStack {
-                    LinearGradient(colors: [Color(white: 0.42), Color(white: 0.22)],
-                                   startPoint: .topLeading, endPoint: .bottomTrailing)
-                    if let scale = HUDController.scale(for: store.config.hudSize) {
-                        HUDPreview(scale: scale, orb: OrbState(rawValue: store.config.orbState) ?? .composing,
-                                   showText: store.config.hudText)
-                    } else {
-                        Text("No animation — the text just changes.")
-                            .font(.callout).foregroundStyle(.white.opacity(0.8))
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: 230)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .overlay(alignment: .bottomTrailing) {
-                    Text("Real size")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(.white.opacity(0.85))
-                        .padding(.horizontal, 7).padding(.vertical, 3)
-                        .background(.black.opacity(0.3), in: Capsule())
-                        .padding(8)
-                }
-                Picker("Size", selection: $store.config.hudSize) {
+                Picker("Size", selection: Binding(
+                    get: { store.config.hudSize },
+                    set: { v in withAnimation(.easeInOut(duration: 0.25)) { store.config.hudSize = v } })) {
                     ForEach(hudSizes) { Text($0.name).tag($0.id) }
                 }
                 .pickerStyle(.segmented)
-                Picker("Orb", selection: $store.config.orbState) {
-                    ForEach(orbChoices, id: \.rawValue) { Text($0.rawValue.capitalized).tag($0.rawValue) }
-                }
-                .pickerStyle(.segmented)
-                Toggle("Show text", isOn: $store.config.hudText)
+                .probe("anim.size")
             } footer: {
-                Text("Shown right above the text you're fixing.")
+                Text(store.config.hudSize == "off" ? "Off: no bubble, the text just changes." : "Shown right above the text you're fixing.")
                     .font(.caption).foregroundStyle(.secondary)
+            }
+            if let scale = HUDController.scale(for: store.config.hudSize) {
+                Section {
+                    ZStack {
+                        LinearGradient(colors: [Color(white: 0.42), Color(white: 0.22)],
+                                       startPoint: .topLeading, endPoint: .bottomTrailing)
+                        HUDPreview(scale: scale, orb: OrbState(rawValue: store.config.orbState) ?? .composing,
+                                   showText: store.config.hudText)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 230)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .overlay(alignment: .bottomTrailing) {
+                        Text("Real size")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.white.opacity(0.85))
+                            .padding(.horizontal, 7).padding(.vertical, 3)
+                            .background(.black.opacity(0.3), in: Capsule())
+                            .padding(8)
+                    }
+                    .probe("anim.preview")
+                    Picker("Orb", selection: $store.config.orbState) {
+                        ForEach(orbChoices, id: \.rawValue) { Text($0.rawValue.capitalized).tag($0.rawValue) }
+                    }
+                    .pickerStyle(.segmented)
+                    .probe("anim.orb")
+                    Toggle("Show text", isOn: $store.config.hudText)
+                        .probe("anim.text")
+                }
+                .transition(.opacity)
             }
         }
         .formStyle(.grouped)
@@ -934,8 +950,11 @@ struct FallbackRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             Toggle("Use local model if Claude fails", isOn: $on)
+                .probe("writing.fallback")
             if on {
                 ModelDetailsRow(model: "local").localStatus
+                    .probe("writing.fallbackStatus")
+                    .transition(.opacity)
             }
         }
     }

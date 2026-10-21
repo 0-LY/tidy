@@ -48,6 +48,12 @@ struct Config: Codable, Equatable {
     }
 }
 
+enum FirstLaunch {
+    nonisolated(unsafe) static var fresh = false
+
+    static func shouldGuide(fresh: Bool, trusted: Bool) -> Bool { fresh && !trusted }
+}
+
 enum Paths {
     static let home = FileManager.default.homeDirectoryForCurrentUser
     static let configDir = home.appendingPathComponent(".config/\(Identity.configDirName)")
@@ -337,6 +343,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         StatusBar.shared.setVisible(Store.shared.config.showInMenuBar)
         if CommandLine.arguments.contains("--peek") {
             SettingsWindow.shared.peek()
+        } else if FirstLaunch.shouldGuide(fresh: FirstLaunch.fresh, trusted: Access.trusted) && !launchedInBackground {
+            UserDefaults.standard.set("general", forKey: SettingsTabs.lastKey)
+            SettingsWindow.shared.show()
         } else if CommandLine.arguments.contains("--settings") || (!Store.shared.config.showInMenuBar && !launchedInBackground) {
             SettingsWindow.shared.show()
         }
@@ -442,10 +451,11 @@ struct TidyApp: App {
                 other.activate()
                 exit(0)
             }
+            FirstLaunch.fresh = !FileManager.default.fileExists(atPath: Paths.config.path)
             HUDController.shared.listen()
             HotKey.shared.onPress = { Fixer.shared.trigger() }
             HotKey.shared.register(Store.shared.config.hotkey)
-            if !Access.trusted { Access.request() }
+            if FirstLaunch.shouldGuide(fresh: FirstLaunch.fresh, trusted: Access.trusted) { Access.request() }
             return
         }
         do {

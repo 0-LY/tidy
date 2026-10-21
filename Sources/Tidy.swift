@@ -51,7 +51,6 @@ struct Config: Codable, Equatable {
 enum FirstLaunch {
     nonisolated(unsafe) static var fresh = false
 
-    static func shouldGuide(fresh: Bool, trusted: Bool) -> Bool { fresh && !trusted }
 }
 
 enum Paths {
@@ -343,9 +342,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         StatusBar.shared.setVisible(Store.shared.config.showInMenuBar)
         if CommandLine.arguments.contains("--peek") {
             SettingsWindow.shared.peek()
-        } else if FirstLaunch.shouldGuide(fresh: FirstLaunch.fresh, trusted: Access.trusted) && !launchedInBackground {
-            UserDefaults.standard.set("general", forKey: SettingsTabs.lastKey)
-            SettingsWindow.shared.show()
+        } else if TidySetup.shouldOfferSetup(fresh: FirstLaunch.fresh, background: launchedInBackground) {
+            SetupWindow.shared.show()
         } else if CommandLine.arguments.contains("--settings") || (!Store.shared.config.showInMenuBar && !launchedInBackground) {
             SettingsWindow.shared.show()
         }
@@ -388,6 +386,7 @@ final class StatusBar: NSObject, NSMenuDelegate {
         hint.isEnabled = false
         menu.addItem(hint)
         menu.addItem(item("Settings…", #selector(openSettings), key: ","))
+        menu.addItem(item("Set Up \(Identity.appName)…", #selector(openSetup)))
         menu.addItem(item("Check for Updates…", #selector(checkUpdates)))
         menu.addItem(.separator())
         menu.addItem(item("Quit \(Identity.appName)", #selector(quit), key: "q"))
@@ -420,6 +419,8 @@ final class StatusBar: NSObject, NSMenuDelegate {
     }
 
     @objc private func openSettings() { SettingsWindow.shared.show() }
+
+    @objc private func openSetup() { MainActor.assumeIsolated { SetupWindow.shared.show() } }
 
     @objc private func checkUpdates() { Updates.shared.checkNow() }
 
@@ -455,7 +456,6 @@ struct TidyApp: App {
             HUDController.shared.listen()
             HotKey.shared.onPress = { Fixer.shared.trigger() }
             HotKey.shared.register(Store.shared.config.hotkey)
-            if FirstLaunch.shouldGuide(fresh: FirstLaunch.fresh, trusted: Access.trusted) { Access.request() }
             return
         }
         do {
@@ -479,6 +479,7 @@ struct TidyApp: App {
                 CommandGroup(replacing: .appSettings) {
                     Button("Settings…") { SettingsWindow.shared.show() }
                         .keyboardShortcut(",", modifiers: .command)
+                    Button("Set Up \(Identity.appName)…") { SetupWindow.shared.show() }
                     Button("Check for Updates…") { Updates.shared.checkNow() }
                 }
                 CommandGroup(before: .windowSize) {

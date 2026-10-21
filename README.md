@@ -58,8 +58,17 @@ If Claude is unavailable, Tidy can fall back to the local model.
 1. [Download Tidy.dmg](https://github.com/0-LY/tidy/releases/latest/download/Tidy.dmg) and open it.
 2. Drag **Tidy** onto the **Applications** folder in the window that opens.
 3. Open Tidy from Applications and use **Open Anyway** as above.
-4. Allow **Accessibility** when asked (System Settings → Privacy & Security → Accessibility).
-   Tidy needs it to copy your selection and paste the fixed text.
+4. **First launch:** a short setup walks you through allowing **Accessibility** (the button opens that page in
+   System Settings; Tidy needs it to copy your selection and paste the fixed text), choosing Local or Haiku,
+   your style and hotkey, and a quick try — with a little confetti at the end.
+   Run it again any time from the menu: **Set Up Tidy…**
+
+<p align="center">
+  <img src="docs/screenshots/setup-welcome.png" width="200" alt="Setup: welcome">
+  <img src="docs/screenshots/setup-access.png" width="200" alt="Setup: allow Accessibility">
+  <img src="docs/screenshots/setup-model.png" width="200" alt="Setup: choose the model">
+  <img src="docs/screenshots/setup-try.png" width="200" alt="Setup: try it">
+</p>
 
 Requirements: macOS 26 or later on Apple silicon. For Haiku, install Claude Code and sign in once (`claude`).
 For Local, turn on Apple Intelligence.

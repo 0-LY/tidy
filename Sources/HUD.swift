@@ -45,14 +45,16 @@ final class HUDController {
         let parts = message.split(separator: ":", maxSplits: 1).map(String.init)
         let arg = parts.count > 1 ? parts[1] : nil
         switch parts.first {
-        case "start": show(label: arg ?? "Thinking", anchor: TextLocator.selectionRect())
+        case "start":
+            let place = TextLocator.target()
+            show(label: arg ?? "Thinking", anchor: place.anchor, window: place.window)
         case "done": finish(.done(arg ?? "Done"))
         case "fail": finish(.failed(arg ?? "Couldn't fix"))
         default: break
         }
     }
 
-    func show(label: String, anchor: CGRect?) {
+    func show(label: String, anchor: CGRect?, window: CGRect? = nil) {
         let config = Store.shared.config
         guard let scale = Self.scale(for: config.hudSize) else { return }
         pending?.cancel()
@@ -65,7 +67,7 @@ final class HUDController {
         let size = host?.fittingSize ?? NSSize(width: 240 * scale, height: 70 * scale)
         p.setContentSize(size)
         host?.frame = NSRect(origin: .zero, size: size)
-        place(p, size: size, anchor: anchor)
+        place(p, size: size, anchor: anchor, window: window)
         p.orderFrontRegardless()
         withAnimation(.spring(response: 0.38, dampingFraction: 0.72)) { model.phase = .thinking }
         schedule(after: 90) { [weak self] in self?.finish(.failed("Timed out")) }
@@ -79,8 +81,8 @@ final class HUDController {
         schedule(after: isFail ? 1.8 : 1.0) { [weak self] in self?.hide() }
     }
 
-    func flash(_ phase: HUDPhase, anchor: CGRect?) {
-        show(label: "Thinking", anchor: anchor)
+    func flash(_ phase: HUDPhase, anchor: CGRect?, window: CGRect? = nil) {
+        show(label: "Thinking", anchor: anchor, window: window)
         finish(phase)
     }
 
@@ -116,22 +118,52 @@ final class HUDController {
         return p
     }
 
-    private func place(_ p: NSPanel, size: NSSize, anchor: CGRect?) {
-        let point = anchor.map { NSPoint(x: $0.minX, y: $0.midY) } ?? NSEvent.mouseLocation
-        let screen = NSScreen.screens.first { NSMouseInRect(point, $0.frame, false) } ?? NSScreen.main
-        let vis = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+    private func place(_ p: NSPanel, size: NSSize, anchor: CGRect?, window: CGRect?) {
+        let screens = NSScreen.screens.map { (frame: $0.frame, visible: $0.visibleFrame) }
+        p.setFrameOrigin(HUDPlacement.origin(size: size, anchor: anchor, window: window,
+                                             mouse: NSEvent.mouseLocation, screens: screens))
+    }
+}
+
+enum HUDPlacement {
+    static func validAnchor(_ anchor: CGRect?, window: CGRect?) -> CGRect? {
+        guard let anchor else { return nil }
+        guard let window else { return anchor }
+        let center = NSPoint(x: anchor.midX, y: anchor.midY)
+        return window.insetBy(dx: -24, dy: -24).contains(center) ? anchor : nil
+    }
+
+    static func screen(for point: NSPoint, screens: [(frame: CGRect, visible: CGRect)]) -> (frame: CGRect, visible: CGRect)? {
+        if let hit = screens.first(where: { NSMouseInRect(point, $0.frame, false) }) { return hit }
+        return screens.min { distance(point, $0.frame) < distance(point, $1.frame) }
+    }
+
+    private static func distance(_ p: NSPoint, _ r: CGRect) -> CGFloat {
+        let dx = max(r.minX - p.x, 0, p.x - r.maxX)
+        let dy = max(r.minY - p.y, 0, p.y - r.maxY)
+        return hypot(dx, dy)
+    }
+
+    static func origin(size: NSSize, anchor: CGRect?, window: CGRect?, mouse: NSPoint,
+                       screens: [(frame: CGRect, visible: CGRect)]) -> NSPoint {
+        let point: NSPoint
+        if let a = anchor { point = NSPoint(x: a.minX, y: a.midY) }
+        else if let w = window { point = NSPoint(x: w.midX, y: w.midY) }
+        else { point = mouse }
+        let vis = screen(for: point, screens: screens)?.visible ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         var origin: NSPoint
         if let a = anchor {
             origin = NSPoint(x: a.minX - 6, y: a.maxY + 2)
             if origin.y + size.height > vis.maxY { origin.y = a.minY - size.height - 2 }
+        } else if let w = window, !w.contains(mouse) {
+            origin = NSPoint(x: w.midX - size.width / 2, y: w.maxY - size.height - 56)
         } else {
-            let m = NSEvent.mouseLocation
-            origin = NSPoint(x: m.x - size.width / 2, y: m.y + 16)
-            if origin.y + size.height > vis.maxY { origin.y = m.y - size.height - 16 }
+            origin = NSPoint(x: mouse.x - size.width / 2, y: mouse.y + 16)
+            if origin.y + size.height > vis.maxY { origin.y = mouse.y - size.height - 16 }
         }
         origin.x = min(max(origin.x, vis.minX + 4), vis.maxX - size.width - 4)
         origin.y = min(max(origin.y, vis.minY + 4), vis.maxY - size.height - 4)
-        p.setFrameOrigin(origin)
+        return origin
     }
 }
 

@@ -1,6 +1,9 @@
 import AppKit
 import ApplicationServices
 import Carbon.HIToolbox
+import os
+
+let fixLog = Logger(subsystem: Identity.bundleId, category: "fix")
 
 let defaultHotkey = "ctrl-opt-f"
 
@@ -15,27 +18,65 @@ func normalizedHotkey(_ id: String) -> String {
     return hotkeyShortcut(id)?.storageID ?? id
 }
 
+final class HotKeyStatus: ObservableObject {
+    static let shared = HotKeyStatus()
+    @Published var problem: String?
+}
+
+enum HotKeyProblem {
+    static func message(status: OSStatus, shortcut: RecordedShortcut?,
+                        macOS: [(RecordedShortcut, String)] = MacShortcuts.enabled) -> String? {
+        guard let shortcut else { return nil }
+        if status != noErr { return "Couldn't use \(shortcut.display) (error \(status)). Pick another shortcut." }
+        if let hit = macOS.first(where: { $0.0 == shortcut }) {
+            return "macOS uses \(shortcut.display) for \(hit.1). Pick another shortcut."
+        }
+        return nil
+    }
+}
+
 final class HotKey {
     static let shared = HotKey()
 
     var onPress: (() -> Void)?
     private var ref: EventHotKeyRef?
     private var handlerInstalled = false
+    private(set) var lastStatus: OSStatus = noErr
+    private(set) var registered: RecordedShortcut?
 
     func register(_ id: String) {
         if let ref { UnregisterEventHotKey(ref) }
         ref = nil
-        guard let shortcut = hotkeyShortcut(id) else { return }
+        guard let shortcut = hotkeyShortcut(id) else {
+            fixLog.log("hotkey off (id \(id, privacy: .public))")
+            lastStatus = noErr
+            registered = nil
+            publish(nil)
+            return
+        }
         if !handlerInstalled {
             var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-            InstallEventHandler(GetApplicationEventTarget(), { _, _, _ in
+            let installed = InstallEventHandler(GetApplicationEventTarget(), { _, _, _ in
+                fixLog.log("hotkey pressed")
                 DispatchQueue.main.async { HotKey.shared.onPress?() }
                 return noErr
             }, 1, &spec, nil, nil)
-            handlerInstalled = true
+            fixLog.log("hotkey handler installed: \(installed)")
+            handlerInstalled = installed == noErr
         }
         let hotID = EventHotKeyID(signature: OSType(0x4658_5458), id: 1)
-        RegisterEventHotKey(UInt32(shortcut.keyCode), UInt32(shortcut.carbonModifiers), hotID, GetApplicationEventTarget(), 0, &ref)
+        let status = RegisterEventHotKey(UInt32(shortcut.keyCode), UInt32(shortcut.carbonModifiers), hotID,
+                                         GetApplicationEventTarget(), 0, &ref)
+        lastStatus = status
+        registered = status == noErr ? shortcut : nil
+        fixLog.log("hotkey register \(shortcut.display, privacy: .public) keyCode \(shortcut.keyCode) carbon \(shortcut.carbonModifiers) status \(status) trusted \(Access.trusted)")
+        publish(HotKeyProblem.message(status: status, shortcut: shortcut))
+    }
+
+    private func publish(_ problem: String?) {
+        if Thread.isMainThread { HotKeyStatus.shared.problem = problem } else {
+            DispatchQueue.main.async { HotKeyStatus.shared.problem = problem }
+        }
     }
 }
 
@@ -52,7 +93,35 @@ enum Access {
     }
 }
 
+enum ModifierWait {
+    static func held(_ f: CGEventFlags) -> Bool {
+        f.contains(.maskControl) || f.contains(.maskAlternate) || f.contains(.maskShift) || f.contains(.maskCommand)
+    }
+}
+
 enum TextLocator {
+    static func selectedText(_ element: AXUIElement?) -> String? {
+        guard let element else { return nil }
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXSelectedTextAttribute as CFString, &value) == .success,
+              let text = value as? String, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return text
+    }
+
+    static func windowFrame(_ element: AXUIElement?) -> CGRect? {
+        guard let element else { return nil }
+        var win: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXWindowAttribute as CFString, &win) == .success,
+              let win, CFGetTypeID(win) == AXUIElementGetTypeID() else { return nil }
+        return frame(win as! AXUIElement).flatMap(toCocoa)
+    }
+
+    static func target() -> (anchor: CGRect?, window: CGRect?) {
+        guard Access.trusted else { return (nil, nil) }
+        let window = windowFrame(focusedElement())
+        return (HUDPlacement.validAnchor(selectionRect(), window: window), window)
+    }
+
     static func focusedElement() -> AXUIElement? {
         guard Access.trusted else { return nil }
         let system = AXUIElementCreateSystemWide()
@@ -95,7 +164,7 @@ enum TextLocator {
         return rect
     }
 
-    private static func frame(_ el: AXUIElement) -> CGRect? {
+    static func frame(_ el: AXUIElement) -> CGRect? {
         var pos: CFTypeRef?, size: CFTypeRef?
         guard AXUIElementCopyAttributeValue(el, kAXPositionAttribute as CFString, &pos) == .success,
               AXUIElementCopyAttributeValue(el, kAXSizeAttribute as CFString, &size) == .success,
@@ -105,7 +174,7 @@ enum TextLocator {
         return CGRect(origin: p, size: s)
     }
 
-    private static func toCocoa(_ r: CGRect) -> CGRect? {
+    static func toCocoa(_ r: CGRect) -> CGRect? {
         guard let primary = NSScreen.screens.first else { return nil }
         let c = CGRect(x: r.minX, y: primary.frame.height - r.maxY, width: r.width, height: r.height)
         guard NSScreen.screens.contains(where: { $0.frame.intersects(c.insetBy(dx: -1, dy: -1)) }) else { return nil }
@@ -159,12 +228,14 @@ enum Keys {
         }
     }
 
-    static func waitForModifiersUp(timeout: Double = 0.8, then: @escaping () -> Void) {
+    static func waitForModifiersUp(timeout: Double = 1.5, then: @escaping () -> Void) {
         let deadline = Date().addingTimeInterval(timeout)
         func poll() {
-            let f = CGEventSource.flagsState(.combinedSessionState)
-            let held = f.contains(.maskControl) || f.contains(.maskAlternate) || f.contains(.maskShift) || f.contains(.maskCommand)
-            if !held || Date() > deadline { then() } else {
+            let held = ModifierWait.held(CGEventSource.flagsState(.combinedSessionState))
+            if !held || Date() > deadline {
+                if held { fixLog.log("modifiers still held after \(timeout)s") }
+                then()
+            } else {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.02, execute: poll)
             }
         }
@@ -177,8 +248,10 @@ final class Fixer {
     private var running = false
 
     func trigger() {
+        let trusted = Access.trusted
+        fixLog.log("trigger: running \(self.running) trusted \(trusted) front \(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "-", privacy: .public)")
         guard !running else { return }
-        guard Access.trusted else {
+        guard trusted else {
             Access.request()
             HUDController.shared.flash(.failed("Allow Accessibility first"), anchor: nil)
             return
@@ -186,26 +259,38 @@ final class Fixer {
         running = true
         let front = NSWorkspace.shared.frontmostApplication?.processIdentifier
         let focus = TextLocator.focusedElement()
-        let anchor = TextLocator.selectionRect()
+        let place = TextLocator.target()
+        let anchor = place.anchor
+        let window = place.window
         let config = Store.shared.config
+        let axText = TextLocator.selectedText(focus)
+        fixLog.log("selection via AX: \(axText?.count ?? -1) chars, anchor \(anchor != nil), window \(window != nil)")
 
         Keys.waitForModifiersUp {
             let pb = NSPasteboard.general
             let saved = Clip.save(pb)
             let before = pb.changeCount
             Keys.cmd(CGKeyCode(kVK_ANSI_C))
-            self.waitForCopy(pb, from: before, until: Date().addingTimeInterval(0.6)) { copied in
-                guard copied, let text = pb.string(forType: .string),
-                      !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            self.waitForCopy(pb, from: before, until: Date().addingTimeInterval(1.0)) { copied in
+                let copiedText = copied ? pb.string(forType: .string) : nil
+                fixLog.log("copy: changeCount \(before) → \(pb.changeCount) copied \(copied) length \(copiedText?.count ?? -1)")
+                let usable = { (t: String?) -> String? in
+                    guard let t, !t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+                    return t
+                }
+                guard let text = usable(copiedText) ?? usable(axText) else {
                     Clip.restore(saved, pb)
-                    HUDController.shared.flash(.failed("Select some text first"), anchor: anchor)
+                    fixLog.log("no selection found")
+                    HUDController.shared.flash(.failed("Select some text first"), anchor: anchor, window: window)
                     self.running = false
                     return
                 }
                 Clip.write(text, pb)
-                HUDController.shared.show(label: "Thinking", anchor: anchor)
+                HUDController.shared.show(label: "Thinking", anchor: anchor, window: window)
+                let started = Date()
                 Task { @MainActor in
                     let r = await runFix(text)
+                    fixLog.log("fixer: ok \(r.ok) engine \(r.engine, privacy: .public) \(Int(Date().timeIntervalSince(started) * 1000)) ms")
                     self.finish(r, text: text, saved: saved, front: front, focus: focus, config: config)
                 }
             }
@@ -234,6 +319,7 @@ final class Fixer {
         let ours = Clip.write(result, pb)
 
         guard frontApp?.processIdentifier == front else {
+            fixLog.log("not pasted: app changed")
             HUDController.shared.finish(.done("Copied — app changed"))
             running = false
             return
@@ -245,11 +331,13 @@ final class Fixer {
         default: false
         }
         guard sameField else {
+            fixLog.log("not pasted: field changed")
             HUDController.shared.finish(.done("Copied — field changed"))
             running = false
             return
         }
         Keys.cmd(CGKeyCode(kVK_ANSI_V))
+        fixLog.log("pasted")
         let label = (r.engine == "local" && config.model != "local") ? "Done · local model" : "Done"
         HUDController.shared.finish(.done(label))
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {

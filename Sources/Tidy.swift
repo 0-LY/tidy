@@ -461,6 +461,11 @@ struct TidyApp: App {
             HUDController.shared.listen()
             HotKey.shared.onPress = { Fixer.shared.trigger() }
             HotKey.shared.register(Store.shared.config.hotkey)
+            if HotKeyStatus.shared.problem != nil {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    HUDController.shared.flash(.failed("Shortcut taken — see Settings"), anchor: nil)
+                }
+            }
             return
         }
         do {
@@ -541,6 +546,7 @@ struct SettingsView: View {
     let tab: String
     @EnvironmentObject var store: Store
     @ObservedObject private var ui = SettingsUI.shared
+    @ObservedObject private var hk = HotKeyStatus.shared
 
     var body: some View {
         VStack(spacing: 0) {
@@ -599,7 +605,8 @@ struct SettingsView: View {
                 LabeledContent("Accessibility") { AccessBadge() }
                 LabeledContent {
                     ShortcutRecorder(shortcut: store.hotkeyBinding, defaultShortcut: hotkeyShortcut(defaultHotkey),
-                                     conflicts: SiblingShortcuts.read(excluding: Identity.configDirName))
+                                     conflicts: SiblingShortcuts.read(excluding: Identity.configDirName),
+                                     problem: hk.problem)
                 } label: {
                     Text("Hotkey")
                     Text("Select text anywhere, then press it.")

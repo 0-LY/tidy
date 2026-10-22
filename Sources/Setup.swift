@@ -139,6 +139,7 @@ final class SetupModel: ObservableObject {
 struct SetupView: View {
     @ObservedObject var m: SetupModel
     @ObservedObject var store: Store
+    @ObservedObject private var hotkeyStatus = HotKeyStatus.shared
     let close: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -254,7 +255,8 @@ struct SetupView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Hotkey").font(.headline)
                 ShortcutRecorder(shortcut: store.hotkeyBinding, defaultShortcut: hotkeyShortcut(defaultHotkey),
-                                 conflicts: SiblingShortcuts.read(excluding: Identity.configDirName))
+                                 conflicts: SiblingShortcuts.read(excluding: Identity.configDirName),
+                                 problem: hotkeyStatus.problem)
                     .controlSize(.large)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Text("Select text anywhere, then press it.")

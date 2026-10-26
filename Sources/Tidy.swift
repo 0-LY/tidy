@@ -339,7 +339,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let event = NSAppleEventManager.shared().currentAppleEvent
         if event?.paramDescriptor(forKeyword: 0x7072_6474)?.enumCodeValue == 0x6C67_6974 { return true }
         let dock = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.dock").first?.launchDate
-        return dock.map { Date().timeIntervalSince($0) < 120 } ?? false
+        return dock.map { Date().timeIntervalSince($0) < 180 } ?? false
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -458,6 +458,7 @@ struct TidyApp: App {
                 exit(0)
             }
             FirstLaunch.fresh = !FileManager.default.fileExists(atPath: Paths.config.path)
+            if FirstLaunch.fresh { try? SMAppService.mainApp.register() }
             HUDController.shared.listen()
             HotKey.shared.onPress = { Fixer.shared.trigger() }
             HotKey.shared.register(Store.shared.config.hotkey)
